@@ -5,6 +5,7 @@ import urllib.parse
 
 class URL:
     def __init__(self, url):
+        self.view_source = False
         try:
             self.scheme, url = url.split("://", 1)
             possible_schemes = {
@@ -12,6 +13,9 @@ class URL:
                 "https": 443,
                 "file": 0,
             }
+            if self.scheme.startswith("view-source:"):
+                self.view_source = True
+                self.scheme = self.scheme.split(":", 1)[1]
             assert self.scheme in possible_schemes
             self.port = possible_schemes[self.scheme]
 
@@ -85,6 +89,10 @@ class URL:
         elif self.scheme.startswith("data"):
             content = urllib.parse.unquote(self.data, encoding='utf-8')
             
+        if self.view_source:
+            content = content.replace("<", "&lt;")
+            content = content.replace(">", "&gt;")
+
         return content
 
 
@@ -92,14 +100,21 @@ def show(body):
     """
     Print all text (without tags).
     """
+    
     in_tag = False 
+    to_print = ""
     for c in body:
         if c == "<":
             in_tag = True 
         elif c == ">":
             in_tag = False 
         elif not in_tag:
-            print(c, end="")
+            to_print += c
+
+    # convert entities to text
+    to_print = to_print.replace("&lt;", "<")
+    to_print = to_print.replace("&gt;", ">")
+    print(to_print)
 
 def load(url):
     body = url.request()
