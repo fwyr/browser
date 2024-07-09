@@ -81,20 +81,26 @@ class URL:
 
             content = response.read()
             s.close()
-
+                
         elif self.scheme == "file":
             content = open(self.path, "r")
             content = "".join(content.readlines())
 
         elif self.scheme.startswith("data"):
             content = urllib.parse.unquote(self.data, encoding='utf-8')
+
+        if status == "301":
+            redirect_url = response_headers["location"]
+            if redirect_url.startswith("/"):
+                redirect_url = f"{self.scheme}://{self.host}{redirect_url}"
+            content = URL(redirect_url).request()
             
         if self.view_source:
             content = content.replace("<", "&lt;")
             content = content.replace(">", "&gt;")
 
         return content
-
+# amogus
 
 def show(body):
     """
