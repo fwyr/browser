@@ -2,6 +2,109 @@ import sys, os
 import socket 
 import ssl
 import urllib.parse
+import tkinter
+
+WIDTH, HEIGHT = 800, 600
+HSTEP, VSTEP = 8, 18
+SCROLL_STEP = 100
+
+def lex(body):
+    """
+    Parse all text (without tags, with entities).
+    """
+    text = ""
+    in_tag = False 
+    for c in body:
+        if c == "<":
+            in_tag = True 
+        elif c == ">":
+            in_tag = False 
+        elif not in_tag:
+            text += c
+
+    # convert entities to text
+    text = text.replace("&lt;", "<")
+    text = text.replace("&gt;", ">")
+    return text
+
+def layout(text):
+    """
+    Compute and store the position of each character.
+    """
+    display_list = []
+    cursor_x, cursor_y = HSTEP, VSTEP 
+    for c in text:
+        display_list.append((cursor_x, cursor_y, c))
+        cursor_x += HSTEP
+        if cursor_x >= WIDTH - HSTEP or c == "\n":
+            cursor_y += VSTEP
+            cursor_x = HSTEP
+    return display_list
+
+
+class Browser:
+    def __init__(self):
+        self.window = tkinter.Tk()
+        self.canvas = tkinter.Canvas(
+            self.window,
+            width=WIDTH,
+            height=HEIGHT
+        )
+
+        self.canvas.pack()
+        self.scroll = 0 # how far you've scrolled
+        self.window.bind("<Down>", self.scrolldown)
+        self.window.bind("<Up>", self.scrollup)
+        self.window.bind("<MouseWheel>", self.scrollmouse)
+
+    def load(self, url):
+        body = url.request()
+        text = lex(body)
+        self.display_list = layout(text)
+        self.draw()
+
+    def draw(self):
+        """
+        Loop through `display_list` and draw each character
+        """
+        self.canvas.delete("all")
+        for x, y, c in self.display_list:
+            if y > self.scroll + HEIGHT: 
+                continue
+            if y + VSTEP < self.scroll: 
+                continue
+            self.canvas.create_text(x, y - self.scroll, text=c)
+
+    def scrolldown(self, e):
+        """
+        Called when down key is pressed.
+        Increments `y` and redraws canvas.
+        """
+        self.scroll += SCROLL_STEP
+        self.draw()
+
+    def scrollup(self, e):
+        """
+        Called when up key is pressed.
+        Decrements `y` and redraws canvas. 
+        """
+        if self.scroll - SCROLL_STEP > 0:
+            self.scroll -= SCROLL_STEP 
+            self.draw()
+
+    def scrollmouse(self, e):
+        """ 
+        Scrolls based on mouse action.
+        """
+        print(e.delta)
+        if e.delta > 0:
+            self.scroll += SCROLL_STEP / 2
+            self.draw()
+        elif e.delta < 0:
+            if self.scroll - (SCROLL_STEP/2) * (-e.delta) > 0:
+                self.scroll -= SCROLL_STEP / 2
+                self.draw()
+
 
 class URL:
     def __init__(self, url):
@@ -31,6 +134,8 @@ class URL:
             if url.startswith("data"):
                 self.scheme, url = url.split("/", 1)
                 media_types, self.data = url.split(",", 1)
+            else:
+                self.scheme = "about:blank"
 
     def request(self):
         if self.scheme in ["http", "https"]:
@@ -89,6 +194,9 @@ class URL:
         elif self.scheme.startswith("data"):
             content = urllib.parse.unquote(self.data, encoding='utf-8')
 
+        elif self.scheme == "about:blank":
+            content = ""
+
         if status == "301":
             redirect_url = response_headers["location"]
             if redirect_url.startswith("/"):
@@ -100,31 +208,7 @@ class URL:
             content = content.replace(">", "&gt;")
 
         return content
-# amogus
-
-def show(body):
-    """
-    Print all text (without tags).
-    """
-    
-    in_tag = False 
-    to_print = ""
-    for c in body:
-        if c == "<":
-            in_tag = True 
-        elif c == ">":
-            in_tag = False 
-        elif not in_tag:
-            to_print += c
-
-    # convert entities to text
-    to_print = to_print.replace("&lt;", "<")
-    to_print = to_print.replace("&gt;", ">")
-    print(to_print)
-
-def load(url):
-    body = url.request()
-    show(body)
 
 if __name__ == "__main__":
-    load(URL(sys.argv[1]))
+    Browser().load(URL(sys.argv[1]))
+    tkinter.mainloop()
