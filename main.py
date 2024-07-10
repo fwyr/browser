@@ -5,7 +5,7 @@ import urllib.parse
 import tkinter
 
 WIDTH, HEIGHT = 800, 600
-HSTEP, VSTEP = 8, 18
+HSTEP, VSTEP = 13, 18
 SCROLL_STEP = 100
 
 def lex(body):
@@ -51,16 +51,17 @@ class Browser:
             height=HEIGHT
         )
 
-        self.canvas.pack()
+        self.canvas.pack(fill="both", expand=True)
         self.scroll = 0 # how far you've scrolled
         self.window.bind("<Down>", self.scrolldown)
         self.window.bind("<Up>", self.scrollup)
         self.window.bind("<MouseWheel>", self.scrollmouse)
+        self.window.bind("<Configure>", self.resize)
 
     def load(self, url):
         body = url.request()
-        text = lex(body)
-        self.display_list = layout(text)
+        self.text = lex(body)
+        self.display_list = layout(self.text)
         self.draw()
 
     def draw(self):
@@ -96,7 +97,6 @@ class Browser:
         """ 
         Scrolls based on mouse action.
         """
-        print(e.delta)
         if e.delta > 0:
             self.scroll += SCROLL_STEP / 2
             self.draw()
@@ -104,6 +104,12 @@ class Browser:
             if self.scroll - (SCROLL_STEP/2) * (-e.delta) > 0:
                 self.scroll -= SCROLL_STEP / 2
                 self.draw()
+
+    def resize(self, e):
+        global WIDTH, HEIGHT 
+        WIDTH, HEIGHT = e.width, e.height
+        self.display_list = layout(self.text)
+        self.draw()
 
 
 class URL:
